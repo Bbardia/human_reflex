@@ -1,0 +1,17 @@
+[Unit]
+Description=Human Reflex kiosk (backend + Chromium)
+After=graphical-session.target
+Wants=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/Sensopro/Side_quest/Human Reflex/kiosk/start.sh
+Restart=on-failure
+RestartSec=5
+
+# For headless / Wayland deployments, set the appropriate display env var:
+# Environment=DISPLAY=:0
+# Environment=WAYLAND_DISPLAY=wayland-0
+
+[Install]
+WantedBy=graphical-session.target

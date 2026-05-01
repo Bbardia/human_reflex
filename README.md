@@ -38,3 +38,30 @@ cd frontend && npm run build && cd ..
 python -m backend.app
 chromium --kiosk --app=http://localhost:8765
 ```
+
+## Kiosk autostart (NUC)
+
+To make the app boot automatically into the Chromium kiosk on the NUC:
+
+1. Install the project at `~/Sensopro/Side_quest/Human Reflex` (or edit the path in `kiosk/human-reflex.service`).
+2. Make sure `chromium` (or `chromium-browser`) is installed system-wide.
+3. Copy the user-level systemd unit:
+   ```bash
+   mkdir -p ~/.config/systemd/user
+   cp kiosk/human-reflex.service ~/.config/systemd/user/
+   ```
+4. Enable + start:
+   ```bash
+   systemctl --user daemon-reload
+   systemctl --user enable --now human-reflex.service
+   ```
+5. To watch logs:
+   ```bash
+   journalctl --user -u human-reflex.service -f
+   ```
+6. To disable autostart:
+   ```bash
+   systemctl --user disable --now human-reflex.service
+   ```
+
+`kiosk/start.sh` builds the frontend if `frontend/dist/` is missing or stale, then launches the backend and Chromium. Both processes share the systemd service's lifetime — when one exits, the other is killed and the unit restarts.
