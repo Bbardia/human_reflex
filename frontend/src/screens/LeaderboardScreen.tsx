@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react'
 import type { SessionSnapshot } from '../types'
 import { GestureRing } from '../components/GestureRing'
+import { FlashOverlay } from '../components/FlashOverlay'
 import { THEME, playerColor } from '../theme'
 
 interface Props { snapshot: SessionSnapshot }
@@ -10,6 +12,9 @@ export function LeaderboardScreen({ snapshot }: Props) {
   const winnerId = data.winner
   const winnerLabel = winnerId == null ? 'DRAW' : `PLAYER ${winnerId}`
   const winnerColor = winnerId == null ? THEME.accent : playerColor(winnerId as 1 | 2)
+  const flashText = data.winner == null ? 'DRAW' : `P${data.winner} WINS`
+  const [shown, setShown] = useState<boolean>(false)
+  useEffect(() => { setShown(true) }, [])
 
   return (
     <div style={{
@@ -53,6 +58,7 @@ export function LeaderboardScreen({ snapshot }: Props) {
         size={180}
         label="HANDS UP TO PLAY AGAIN"
       />
+      <FlashOverlay text={flashText} color={winnerColor} trigger={shown ? 'leaderboard' : null} durationMs={1200} />
     </div>
   )
 }
