@@ -35,7 +35,7 @@ class TouchCircleConfig:
     false_start_speed_threshold: float = 0.5  # frame heights / sec
     false_start_min_duration_ms: int = 100
     false_start_penalty_ms: int = 2000
-    summary_hold_ms: int = 4000  # how long the per-game summary screen lingers
+    summary_min_hold_ms: int = 1500  # minimum ms the summary must show before P1 can dismiss with hands-up
 
 
 @dataclass(frozen=True)

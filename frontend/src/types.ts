@@ -52,7 +52,7 @@ export interface Config {
     preroll_ms_min: number
     preroll_ms_max: number
     target_size_pct: number
-    summary_hold_ms: number
+    summary_min_hold_ms: number
   }
   gesture: { hold_ms: number; idle_timeout_s: number }
 }

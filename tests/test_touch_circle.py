@@ -22,7 +22,7 @@ def _config_for_test() -> TouchCircleConfig:
         false_start_speed_threshold=0.5,
         false_start_min_duration_ms=100,
         false_start_penalty_ms=2000,
-        summary_hold_ms=1000,
+        summary_min_hold_ms=1000,
     )
 
 
@@ -94,7 +94,7 @@ def test_false_start_penalty_when_p1_moves_during_preroll():
         false_start_speed_threshold=0.5,
         false_start_min_duration_ms=50,
         false_start_penalty_ms=2000,
-        summary_hold_ms=1000,
+        summary_min_hold_ms=1000,
     )
     g = TouchCircleGame(now_ms=0, config=cfg, seed=1)
     # Move P1's wrist back and forth fast during pre-roll

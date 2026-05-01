@@ -17,7 +17,6 @@ SCREEN_GAME = "game"
 SCREEN_SUMMARY = "summary"
 
 COUNTDOWN_MS = 4000  # 3 -> 2 -> 1 -> GO
-SUMMARY_MIN_HOLD_MS = 1500  # ignore hands-up for the first 1.5s of summary
 
 
 class Session:
@@ -86,7 +85,7 @@ class Session:
             self._enter_summary(now_ms, self._game.summary())
 
     def _tick_summary(self, now_ms: int, p1: Optional[Pose]) -> None:
-        if now_ms - self._screen_entered_ms < SUMMARY_MIN_HOLD_MS:
+        if now_ms - self._screen_entered_ms < CONFIG.touch_circle.summary_min_hold_ms:
             # Ignore gestures for the first 1.5s so the result is readable
             return
         active = p1 is not None and is_hands_up(p1)
