@@ -4,6 +4,7 @@ import { PlayerHalf } from '../components/PlayerHalf'
 import { StatusBar } from '../components/StatusBar'
 import { TouchCircleCanvas } from '../games/TouchCircleCanvas'
 import { GoalieCanvas } from '../games/GoalieCanvas'
+import { PoseSimonCanvas } from '../games/PoseSimonCanvas'
 import { THEME } from '../theme'
 
 interface Props { snapshot: SessionSnapshot }
@@ -12,6 +13,7 @@ function gameDisplayName(g: GameState): string {
   switch (g.type) {
     case 'touch_circle': return 'TOUCH THE CIRCLE'
     case 'goalie': return 'GOALIE'
+    case 'pose_simon': return 'POSE SIMON'
   }
 }
 
@@ -19,31 +21,45 @@ function progressLabel(g: GameState): string {
   switch (g.type) {
     case 'touch_circle': return `ROUND ${g.round} / ${g.total_rounds}`
     case 'goalie': return `SHOT ${g.shot} / ${g.total_shots}`
+    case 'pose_simon': return `ROUND ${g.round} · ${g.sequence.length} POSE${g.sequence.length === 1 ? '' : 'S'}`
   }
 }
 
 function p1CornerLabel(g: GameState): string {
-  if (g.type === 'touch_circle') {
-    const last = g.results[g.results.length - 1]
-    return last?.p1_time_ms != null ? `${last.p1_time_ms}` : ''
+  switch (g.type) {
+    case 'touch_circle': {
+      const last = g.results[g.results.length - 1]
+      return last?.p1_time_ms != null ? `${last.p1_time_ms}` : ''
+    }
+    case 'goalie':
+      return `${g.results.filter(r => r.p1_saved).length}`
+    case 'pose_simon':
+      return `${g.rounds_cleared_p1}`
   }
-  // goalie: count saves
-  return `${g.results.filter(r => r.p1_saved).length}`
 }
 
 function p2CornerLabel(g: GameState): string {
-  if (g.type === 'touch_circle') {
-    const last = g.results[g.results.length - 1]
-    return last?.p2_time_ms != null ? `${last.p2_time_ms}` : ''
+  switch (g.type) {
+    case 'touch_circle': {
+      const last = g.results[g.results.length - 1]
+      return last?.p2_time_ms != null ? `${last.p2_time_ms}` : ''
+    }
+    case 'goalie':
+      return `${g.results.filter(r => r.p2_saved).length}`
+    case 'pose_simon':
+      return `${g.rounds_cleared_p2}`
   }
-  return `${g.results.filter(r => r.p2_saved).length}`
 }
 
 function gameForeground(g: GameState, side: 'left' | 'right', width: number, height: number) {
-  if (g.type === 'touch_circle') {
-    return <TouchCircleCanvas state={g} side={side} width={width} height={height} />
+  switch (g.type) {
+    case 'touch_circle':
+      return <TouchCircleCanvas state={g} side={side} width={width} height={height} />
+    case 'goalie':
+      return <GoalieCanvas state={g} side={side} width={width} height={height} />
+    case 'pose_simon':
+      return <PoseSimonCanvas state={g} side={side} width={width} height={height} />
   }
-  return <GoalieCanvas state={g} side={side} width={width} height={height} />
 }
 
 export function GameScreen({ snapshot }: Props) {
