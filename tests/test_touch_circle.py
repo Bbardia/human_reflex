@@ -151,3 +151,90 @@ def test_winner_is_lowest_avg_reaction():
         g.tick(now_p2, None, p2)
         now = now_p2 + 1
     assert g.winner() == 1
+
+
+def test_both_players_false_start_same_round():
+    cfg = TouchCircleConfig(
+        rounds=3,
+        preroll_ms_min=500,
+        preroll_ms_max=500,
+        target_size_pct=0.2,
+        false_start_speed_threshold=0.5,
+        false_start_min_duration_ms=50,
+        false_start_penalty_ms=2000,
+        summary_min_hold_ms=1000,
+    )
+    g = TouchCircleGame(now_ms=0, config=cfg, seed=1)
+    p_a = make_pose_with_wrists(left=(0.1, 0.5), right=(0.9, 0.5))
+    p_b = make_pose_with_wrists(left=(0.4, 0.5), right=(0.6, 0.5))
+    # Both players move their wrists fast back-and-forth during pre-roll
+    # First sample stamps last_xy, second triggers fast-motion start, then
+    # we need >= 50 ms more to clear the duration threshold.
+    g.tick(10, p_a, p_a)   # baseline
+    g.tick(20, p_b, p_b)   # fast motion stamps started=20 for both
+    g.tick(40, p_a, p_a)   # still fast
+    g.tick(60, p_b, p_b)   # still fast
+    g.tick(80, p_a, p_a)   # duration = 60 ms >= 50 ms → penalty fires for both
+    s = g.to_dict()
+    last = s["results"][-1]
+    assert last["p1_false_start"] is True
+    assert last["p2_false_start"] is True
+    assert last["p1_time_ms"] == 2000
+    assert last["p2_time_ms"] == 2000
+
+
+def test_tick_after_done_is_noop():
+    cfg = _config_for_test()  # rounds=3
+    g = TouchCircleGame(now_ms=0, config=cfg, seed=1)
+    now = 0
+    for _round in range(cfg.rounds):
+        g.tick(now, None, None)
+        now += cfg.preroll_ms_max + 10
+        g.tick(now, None, None)
+        target = g.to_dict()["target"]
+        p1_x = target["x"] * 0.5
+        p2_x = 0.5 + target["x"] * 0.5
+        p1 = make_pose_with_wrists(left=(p1_x, target["y"]), right=(0.1, 0.1))
+        p2 = make_pose_with_wrists(left=(p2_x, target["y"]), right=(0.9, 0.9))
+        now += 200
+        g.tick(now, p1, p2)
+    assert g.is_done() is True
+    snapshot_before = g.to_dict()
+    # Tick again — should not advance round, change phase, or alter results
+    g.tick(now + 10000, p1, p2)
+    snapshot_after = g.to_dict()
+    assert snapshot_before == snapshot_after
+
+
+def test_winner_when_p2_never_present():
+    cfg = _config_for_test()
+    g = TouchCircleGame(now_ms=0, config=cfg, seed=1)
+    # Drive P1 only — P2 is None for the entire game. Game can't end this way
+    # because round-advance requires both result.p1_time_ms and p2_time_ms set.
+    # So we drive P1 hits to populate p1_time_ms, then leave p2_time_ms None,
+    # then force the game to done by exhausting rounds via direct phase poke.
+    # That's not realistic in normal play but tests winner() math when p2
+    # average time = inf.
+    now = 0
+    for _round in range(cfg.rounds):
+        g.tick(now, None, None)
+        now += cfg.preroll_ms_max + 10
+        g.tick(now, None, None)
+        target = g.to_dict()["target"]
+        p1_x = target["x"] * 0.5
+        p1 = make_pose_with_wrists(left=(p1_x, target["y"]), right=(0.1, 0.1))
+        # Hit P1; manually mark P2 time so round advances (penalty-style)
+        now += 200
+        g.tick(now, p1, None)
+        # Force p2 result to a sentinel so the round can advance — simulating
+        # what happens if P2 never moves and the game eventually times out.
+        # Instead, mark P2 false-start to settle the round. Easiest: re-use
+        # the false-start penalty path indirectly by setting result manually.
+        last = g._results[-1]  # type: ignore[attr-defined]
+        last.p2_time_ms = None  # P2 truly never present
+        # Round won't advance by itself. Force advance for test purposes:
+        g._advance_round(now)  # type: ignore[attr-defined]
+        now += 1
+    assert g.is_done() is True
+    # P1 has finite avg, P2 has inf → P1 wins
+    assert g.winner() == 1
