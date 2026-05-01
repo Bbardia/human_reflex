@@ -60,9 +60,26 @@ export interface GoalieState {
   results: GoalieShotResult[]
 }
 
+// ---- Pose Simon ----
+
+export type PoseSimonPose = 'arms_up' | 't_pose' | 'left_arm_up' | 'right_arm_up' | 'hands_on_hips' | 'squat'
+
+export interface PoseSimonState {
+  type: 'pose_simon'
+  round: number
+  phase: 'demo' | 'input' | 'resolve' | 'done'
+  sequence: PoseSimonPose[]
+  p1_index: number
+  p2_index: number
+  p1_completed: boolean
+  p2_completed: boolean
+  rounds_cleared_p1: number
+  rounds_cleared_p2: number
+}
+
 // ---- Union ----
 
-export type GameState = TouchCircleState | GoalieState
+export type GameState = TouchCircleState | GoalieState | PoseSimonState
 
 // Backwards-compat alias for components that haven't been updated yet
 export type RoundResult = TouchCircleRoundResult
@@ -116,6 +133,13 @@ export interface Config {
     preroll_ms_min: number
     preroll_ms_max: number
     ball_travel_ms: number
+  }
+  pose_simon: {
+    starting_sequence_length: number
+    demo_pose_ms: number
+    demo_gap_ms: number
+    hold_ms: number
+    timeout_per_pose_ms: number
   }
   gesture: { hold_ms: number; idle_timeout_s: number }
   session: { intermission_ms: number }
