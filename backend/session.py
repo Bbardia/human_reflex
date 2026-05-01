@@ -12,6 +12,7 @@ from backend.gestures import is_hands_up, GestureHold
 from backend.games.base import Game
 from backend.games.touch_circle import TouchCircleGame
 from backend.games.goalie import GoalieGame
+from backend.games.pose_simon import PoseSimonGame
 from backend.pose.types import Pose
 
 
@@ -36,10 +37,15 @@ def _goalie_factory(now_ms: int) -> Game:
     return GoalieGame(now_ms=now_ms, config=CONFIG.goalie, seed=now_ms)
 
 
+def _pose_simon_factory(now_ms: int) -> Game:
+    return PoseSimonGame(now_ms=now_ms, config=CONFIG.pose_simon, seed=now_ms)
+
+
 # Order matters: this is the play sequence.
 GAME_REGISTRY: list[GameFactory] = [
     _touch_circle_factory,
     _goalie_factory,
+    _pose_simon_factory,
 ]
 
 
