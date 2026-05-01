@@ -1,21 +1,33 @@
-"""aiohttp server hosting the static frontend and the /ws WebSocket endpoint.
-The WebSocket pushes session snapshots; nothing is consumed from clients in v1.
+"""aiohttp server hosting the static frontend, the /ws WebSocket, and the
+/stream.mjpg camera feed. The WebSocket pushes session snapshots; the MJPEG
+endpoint streams JPEG frames at ~30 fps so the browser can render the live
+camera as the background under the pose skeletons.
 """
 import asyncio
 import json
 import logging
 from pathlib import Path
+
+import cv2
 from aiohttp import web, WSMsgType
 from backend.config import CONFIG, public_config_dict
 
 
 log = logging.getLogger(__name__)
 
+STREAM_FPS = 30
+STREAM_JPEG_QUALITY = 65
+
 
 class GameServer:
-    def __init__(self, snapshot_provider):
-        """snapshot_provider: a callable () -> dict — returns the latest session snapshot."""
+    def __init__(self, snapshot_provider, frame_provider=None):
+        """snapshot_provider: () -> dict — returns the latest session snapshot.
+        frame_provider: () -> Frame | None — returns the latest camera frame
+            (with .image and .timestamp_ms). Optional — if missing, /stream.mjpg
+            returns 503.
+        """
         self._snapshot_provider = snapshot_provider
+        self._frame_provider = frame_provider
         self._clients: set[web.WebSocketResponse] = set()
         self._app = web.Application()
         self._setup_routes()
@@ -23,6 +35,7 @@ class GameServer:
 
     def _setup_routes(self) -> None:
         self._app.router.add_get("/ws", self._ws_handler)
+        self._app.router.add_get("/stream.mjpg", self._stream_handler)
         # Static is added at start() if the dist directory exists
 
     async def _ws_handler(self, request: web.Request) -> web.WebSocketResponse:
@@ -40,6 +53,48 @@ class GameServer:
             self._clients.discard(ws)
             log.info("client disconnected; total=%d", len(self._clients))
         return ws
+
+    async def _stream_handler(self, request: web.Request) -> web.StreamResponse:
+        if self._frame_provider is None:
+            return web.Response(status=503, text="camera not wired")
+        boundary = "frame"
+        resp = web.StreamResponse(
+            status=200,
+            reason="OK",
+            headers={
+                "Content-Type": f"multipart/x-mixed-replace; boundary={boundary}",
+                "Cache-Control": "no-cache, private",
+                "Pragma": "no-cache",
+            },
+        )
+        await resp.prepare(request)
+        loop = asyncio.get_running_loop()
+        last_ts: int | None = None
+        encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), STREAM_JPEG_QUALITY]
+        try:
+            while True:
+                frame = self._frame_provider()
+                if frame is None or frame.timestamp_ms == last_ts:
+                    await asyncio.sleep(1.0 / STREAM_FPS)
+                    continue
+                last_ts = frame.timestamp_ms
+                ok, buf = await loop.run_in_executor(
+                    None, cv2.imencode, ".jpg", frame.image, encode_params
+                )
+                if not ok:
+                    await asyncio.sleep(1.0 / STREAM_FPS)
+                    continue
+                jpg = buf.tobytes()
+                chunk = (
+                    f"--{boundary}\r\n"
+                    f"Content-Type: image/jpeg\r\n"
+                    f"Content-Length: {len(jpg)}\r\n\r\n"
+                ).encode() + jpg + b"\r\n"
+                await resp.write(chunk)
+                await asyncio.sleep(1.0 / STREAM_FPS)
+        except (ConnectionResetError, asyncio.CancelledError):
+            pass
+        return resp
 
     async def _broadcast_loop(self) -> None:
         last_payload: str | None = None

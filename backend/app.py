@@ -30,13 +30,19 @@ class App:
         )
         self.router = PlayerRouter()
         self.session = Session(now_ms=int(time.monotonic() * 1000))
-        self.server = GameServer(snapshot_provider=self._snapshot)
+        self.server = GameServer(
+            snapshot_provider=self._snapshot,
+            frame_provider=self._latest_frame,
+        )
         self._latest_p1: Optional[Pose] = None
         self._latest_p2: Optional[Pose] = None
         self._latest_now_ms: int = 0
 
     def _snapshot(self) -> dict:
         return self.session.snapshot(self._latest_now_ms, self._latest_p1, self._latest_p2)
+
+    def _latest_frame(self):
+        return self.camera.get_latest()
 
     async def _pipeline_loop(self) -> None:
         """Pulls the latest camera frame, runs pose, advances session.

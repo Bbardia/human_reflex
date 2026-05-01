@@ -24,7 +24,7 @@ export function GameScreen({ snapshot }: Props) {
 
   return (
     <div style={{
-      position: 'absolute', inset: 0, background: THEME.bgGradient,
+      position: 'absolute', inset: 0,
     }}>
       <StatusBar
         center={`${game.type === 'touch_circle' ? 'TOUCH THE CIRCLE' : ''} · ROUND ${game.round} / ${game.total_rounds}`}
