@@ -77,9 +77,31 @@ export interface PoseSimonState {
   rounds_cleared_p2: number
 }
 
+// ---- Laser Limbo ----
+
+export interface LaserDescriptor {
+  spawn_ms: number
+  duration_ms: number
+  orientation: 'h' | 'v'
+  direction: 1 | -1
+  thickness: number
+}
+
+export interface LaserLimboState {
+  type: 'laser_limbo'
+  phase: 'active' | 'resolve' | 'done'
+  match_duration_ms: number
+  p1_hp: number
+  p2_hp: number
+  p1_hits: number
+  p2_hits: number
+  starting_hp: number
+  lasers: LaserDescriptor[]
+}
+
 // ---- Union ----
 
-export type GameState = TouchCircleState | GoalieState | PoseSimonState
+export type GameState = TouchCircleState | GoalieState | PoseSimonState | LaserLimboState
 
 // Backwards-compat alias for components that haven't been updated yet
 export type RoundResult = TouchCircleRoundResult
@@ -140,6 +162,16 @@ export interface Config {
     demo_gap_ms: number
     hold_ms: number
     timeout_per_pose_ms: number
+  }
+  laser_limbo: {
+    match_duration_s: number
+    starting_hp: number
+    rate_hz_early: number
+    rate_hz_late: number
+    ramp_at_s: number
+    laser_duration_ms: number
+    laser_thickness: number
+    invuln_ms: number
   }
   gesture: { hold_ms: number; idle_timeout_s: number }
   session: { intermission_ms: number }
