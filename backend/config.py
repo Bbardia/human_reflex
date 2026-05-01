@@ -56,6 +56,22 @@ class GoalieConfig:
 
 
 @dataclass(frozen=True)
+class PoseSimonConfig:
+    starting_sequence_length: int = 1
+    demo_pose_ms: int = 600
+    demo_gap_ms: int = 200
+    hold_ms: int = 400  # how long a player must hold each pose for it to count
+    timeout_per_pose_ms: int = 1500  # round timeout = this * sequence_length
+    resolve_hold_ms: int = 1500  # how long to display the round outcome before next round
+    keypoint_conf_threshold: float = 0.3
+    # T-pose tolerances
+    tpose_y_tolerance: float = 0.08  # |wrist.y - shoulder.y| must be within this
+    tpose_x_factor: float = 1.2  # |wrist.x - shoulder.x| must exceed this * shoulder_width
+    # Hands-on-hips tolerance
+    hip_radius: float = 0.10  # max distance wrist↔hip in normalized coords
+
+
+@dataclass(frozen=True)
 class SessionConfig:
     intermission_ms: int = 4000  # auto-advance from intermission to next countdown
 
@@ -74,6 +90,7 @@ class Config:
     gesture: GestureConfig = field(default_factory=GestureConfig)
     touch_circle: TouchCircleConfig = field(default_factory=TouchCircleConfig)
     goalie: GoalieConfig = field(default_factory=GoalieConfig)
+    pose_simon: PoseSimonConfig = field(default_factory=PoseSimonConfig)
     session: SessionConfig = field(default_factory=SessionConfig)
     server: ServerConfig = field(default_factory=ServerConfig)
 
@@ -84,8 +101,9 @@ CONFIG = Config()
 def public_config_dict() -> dict:
     """Subset of config that gets shipped to the frontend on connect."""
     return {
-        "touch_circle": asdict(CONFIG.touch_circle),
-        "goalie": asdict(CONFIG.goalie),
         "gesture": asdict(CONFIG.gesture),
+        "goalie": asdict(CONFIG.goalie),
+        "pose_simon": asdict(CONFIG.pose_simon),
         "session": asdict(CONFIG.session),
+        "touch_circle": asdict(CONFIG.touch_circle),
     }
