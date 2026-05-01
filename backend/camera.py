@@ -42,6 +42,12 @@ class Camera:
             if not ok:
                 time.sleep(0.005)
                 continue
+            # Horizontal flip: the kiosk should feel like a mirror, so a player
+            # raising their right hand sees it raised on the screen's right.
+            # Flipping at capture means pose keypoints, the MJPEG stream, the
+            # player router, and the skeleton overlay are all mirror-consistent
+            # downstream — no per-component flipping needed.
+            img = cv2.flip(img, 1)
             ts = int(time.monotonic() * 1000)
             with self._lock:
                 self._latest = Frame(image=img, timestamp_ms=ts)
