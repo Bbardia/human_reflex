@@ -5,6 +5,7 @@ import { StatusBar } from '../components/StatusBar'
 import { TouchCircleCanvas } from '../games/TouchCircleCanvas'
 import { GoalieCanvas } from '../games/GoalieCanvas'
 import { PoseSimonCanvas } from '../games/PoseSimonCanvas'
+import { LaserLimboCanvas } from '../games/LaserLimboCanvas'
 import { THEME } from '../theme'
 
 interface Props { snapshot: SessionSnapshot }
@@ -14,6 +15,7 @@ function gameDisplayName(g: GameState): string {
     case 'touch_circle': return 'TOUCH THE CIRCLE'
     case 'goalie': return 'GOALIE'
     case 'pose_simon': return 'POSE SIMON'
+    case 'laser_limbo': return 'LASER LIMBO'
   }
 }
 
@@ -22,6 +24,7 @@ function progressLabel(g: GameState): string {
     case 'touch_circle': return `ROUND ${g.round} / ${g.total_rounds}`
     case 'goalie': return `SHOT ${g.shot} / ${g.total_shots}`
     case 'pose_simon': return `ROUND ${g.round} · ${g.sequence.length} POSE${g.sequence.length === 1 ? '' : 'S'}`
+    case 'laser_limbo': return `${g.p1_hp} HP · ${g.p2_hp} HP`
   }
 }
 
@@ -35,6 +38,8 @@ function p1CornerLabel(g: GameState): string {
       return `${g.results.filter(r => r.p1_saved).length}`
     case 'pose_simon':
       return `${g.rounds_cleared_p1}`
+    case 'laser_limbo':
+      return `${g.p1_hp}`
   }
 }
 
@@ -48,6 +53,8 @@ function p2CornerLabel(g: GameState): string {
       return `${g.results.filter(r => r.p2_saved).length}`
     case 'pose_simon':
       return `${g.rounds_cleared_p2}`
+    case 'laser_limbo':
+      return `${g.p2_hp}`
   }
 }
 
@@ -59,6 +66,8 @@ function gameForeground(g: GameState, side: 'left' | 'right', width: number, hei
       return <GoalieCanvas state={g} side={side} width={width} height={height} />
     case 'pose_simon':
       return <PoseSimonCanvas state={g} side={side} width={width} height={height} />
+    case 'laser_limbo':
+      return <LaserLimboCanvas state={g} side={side} width={width} height={height} />
   }
 }
 
