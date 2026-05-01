@@ -4,6 +4,11 @@ from dataclasses import dataclass, field, asdict
 from pathlib import Path
 
 
+def _repo_root() -> Path:
+    # backend/config.py is one level inside the repo root
+    return Path(__file__).resolve().parent.parent
+
+
 @dataclass(frozen=True)
 class CameraConfig:
     device_index: int = 0
@@ -14,7 +19,9 @@ class CameraConfig:
 
 @dataclass(frozen=True)
 class PoseConfig:
-    model_dir: Path = Path("backend/pose/models/yolov8n-pose_openvino_model")
+    model_dir: Path = field(
+        default_factory=lambda: _repo_root() / "backend" / "pose" / "models" / "yolov8n-pose_openvino_model"
+    )
     conf_threshold: float = 0.4
     iou_threshold: float = 0.5
     max_persons: int = 2
@@ -93,7 +100,7 @@ class SessionConfig:
 class ServerConfig:
     host: str = "127.0.0.1"
     port: int = 8765
-    static_dir: Path = Path("frontend/dist")
+    static_dir: Path = field(default_factory=lambda: _repo_root() / "frontend" / "dist")
 
 
 @dataclass(frozen=True)
