@@ -67,7 +67,15 @@ class GameServer:
     async def start(self) -> web.AppRunner:
         static_dir: Path = CONFIG.server.static_dir
         if static_dir.exists():
-            self._app.router.add_static("/", str(static_dir), show_index=True)
+            index_path = static_dir / "index.html"
+
+            async def serve_index(_request: web.Request) -> web.FileResponse:
+                return web.FileResponse(index_path)
+
+            # Explicit / handler so the kiosk URL lands on index.html instead of
+            # the directory listing aiohttp shows when show_index=True.
+            self._app.router.add_get("/", serve_index)
+            self._app.router.add_static("/", str(static_dir))
         runner = web.AppRunner(self._app)
         await runner.setup()
         site = web.TCPSite(runner, CONFIG.server.host, CONFIG.server.port)
