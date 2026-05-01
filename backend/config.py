@@ -39,6 +39,28 @@ class TouchCircleConfig:
 
 
 @dataclass(frozen=True)
+class GoalieConfig:
+    shots: int = 5
+    preroll_ms_min: int = 1000
+    preroll_ms_max: int = 3000
+    ball_travel_ms: int = 700
+    # 5 zones in half-screen normalized coords: (xmin, ymin, xmax, ymax)
+    zones: tuple[tuple[float, float, float, float], ...] = (
+        (0.05, 0.10, 0.30, 0.40),  # 0 top-left
+        (0.70, 0.10, 0.95, 0.40),  # 1 top-right
+        (0.375, 0.40, 0.625, 0.60),  # 2 center
+        (0.05, 0.55, 0.30, 0.85),  # 3 bot-left
+        (0.70, 0.55, 0.95, 0.85),  # 4 bot-right
+    )
+    resolve_hold_ms: int = 600  # how long to display the ball after travel completes
+
+
+@dataclass(frozen=True)
+class SessionConfig:
+    intermission_ms: int = 4000  # auto-advance from intermission to next countdown
+
+
+@dataclass(frozen=True)
 class ServerConfig:
     host: str = "127.0.0.1"
     port: int = 8765
@@ -51,6 +73,8 @@ class Config:
     pose: PoseConfig = field(default_factory=PoseConfig)
     gesture: GestureConfig = field(default_factory=GestureConfig)
     touch_circle: TouchCircleConfig = field(default_factory=TouchCircleConfig)
+    goalie: GoalieConfig = field(default_factory=GoalieConfig)
+    session: SessionConfig = field(default_factory=SessionConfig)
     server: ServerConfig = field(default_factory=ServerConfig)
 
 
@@ -61,5 +85,7 @@ def public_config_dict() -> dict:
     """Subset of config that gets shipped to the frontend on connect."""
     return {
         "touch_circle": asdict(CONFIG.touch_circle),
+        "goalie": asdict(CONFIG.goalie),
         "gesture": asdict(CONFIG.gesture),
+        "session": asdict(CONFIG.session),
     }
