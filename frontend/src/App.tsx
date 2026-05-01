@@ -2,7 +2,8 @@ import { useSessionState } from './ws'
 import { TitleScreen } from './screens/TitleScreen'
 import { CountdownScreen } from './screens/CountdownScreen'
 import { GameScreen } from './screens/GameScreen'
-import { SummaryScreen } from './screens/SummaryScreen'
+import { IntermissionScreen } from './screens/IntermissionScreen'
+import { LeaderboardScreen } from './screens/LeaderboardScreen'
 import { CameraStream } from './components/CameraStream'
 import { THEME } from './theme'
 
@@ -22,9 +23,7 @@ export default function App() {
 
   return (
     <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', background: '#000' }}>
-      {/* Live camera as global background. Skeletons + UI sit on top. */}
       <CameraStream />
-      {/* Translucent dim layer keeps text/skeletons readable over busy scenes. */}
       <div style={{
         position: 'absolute', inset: 0, zIndex: 1, pointerEvents: 'none',
         background: 'linear-gradient(180deg, rgba(10,0,26,0.55) 0%, rgba(26,0,64,0.55) 100%)',
@@ -33,7 +32,8 @@ export default function App() {
         {snapshot.screen === 'title' && <TitleScreen snapshot={snapshot} />}
         {snapshot.screen === 'countdown' && <CountdownScreen snapshot={snapshot} />}
         {snapshot.screen === 'game' && <GameScreen snapshot={snapshot} />}
-        {snapshot.screen === 'summary' && <SummaryScreen snapshot={snapshot} />}
+        {snapshot.screen === 'intermission' && <IntermissionScreen snapshot={snapshot} />}
+        {snapshot.screen === 'leaderboard' && <LeaderboardScreen snapshot={snapshot} />}
       </div>
     </div>
   )
