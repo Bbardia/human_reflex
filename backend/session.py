@@ -95,10 +95,10 @@ class Session:
 
     # ---- serialisation ----
 
-    def to_dict(self) -> dict:
+    def to_dict(self, now_ms: int) -> dict:
         out = {
             "screen": self._screen,
-            "gesture_progress": self._gesture_hold.progress(self._screen_entered_ms or 0),
+            "gesture_progress": self._gesture_hold.progress(now_ms),
         }
         if self._screen == SCREEN_COUNTDOWN and self._countdown_started_ms is not None:
             out["countdown_ms_total"] = COUNTDOWN_MS
@@ -110,8 +110,7 @@ class Session:
 
     def snapshot(self, now_ms: int, p1: Optional[Pose], p2: Optional[Pose]) -> dict:
         """Build the wire-format snapshot for the WebSocket."""
-        out = self.to_dict()
-        out["gesture_progress"] = self._gesture_hold.progress(now_ms)
+        out = self.to_dict(now_ms)
         if self._screen == SCREEN_COUNTDOWN and self._countdown_started_ms is not None:
             out["countdown_remaining_ms"] = max(
                 0, COUNTDOWN_MS - (now_ms - self._countdown_started_ms)
