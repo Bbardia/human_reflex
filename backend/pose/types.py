@@ -1,6 +1,5 @@
 """Pose data types. We use COCO 17-keypoint convention from YOLOv8-Pose."""
 from dataclasses import dataclass
-from typing import Optional
 import numpy as np
 
 
