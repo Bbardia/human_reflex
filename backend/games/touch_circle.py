@@ -38,20 +38,17 @@ class _WristTrack:
     fast_motion_started_ms: Optional[int] = None
 
     def update(self, x: float, y: float, ts: int, threshold_per_sec: float) -> bool:
-        """Returns True if sustained fast motion has occurred for >100ms.
-        Caller decides what "100 ms" means via the gate."""
-        moving_fast = False
+        """Stamp the start of a sustained fast-motion run on the first fast frame.
+        A single slow frame does NOT clear the stamp — the run is only cleared via
+        an explicit reset() call (e.g. when the penalty fires or a new round starts).
+        Returns True if a fast-motion run is currently being tracked."""
         if self.last_x is not None and self.last_ts is not None and ts > self.last_ts:
             dt = (ts - self.last_ts) / 1000.0
             dx = abs(x - self.last_x)
             dy = abs(y - self.last_y) if self.last_y is not None else 0
             speed = math.hypot(dx, dy) / max(dt, 1e-6)
-            moving_fast = speed > threshold_per_sec
-        if moving_fast:
-            if self.fast_motion_started_ms is None:
+            if speed > threshold_per_sec and self.fast_motion_started_ms is None:
                 self.fast_motion_started_ms = ts
-        else:
-            self.fast_motion_started_ms = None
         self.last_x = x
         self.last_y = y
         self.last_ts = ts
@@ -166,16 +163,6 @@ class TouchCircleGame(Game):
             if wrist is None:
                 continue
             if getattr(result, key_flag):
-                continue
-            # Check duration BEFORE updating: if fast motion was already sustained
-            # past the threshold *as of now_ms*, fire the penalty regardless of
-            # this tick's instantaneous speed. (A single slow-frame should not
-            # erase a clearly false-started motion.)
-            if track.fast_motion_duration_ms(now_ms) >= min_dur:
-                setattr(result, key_flag, True)
-                setattr(result, key_time, penalty)
-                track.reset()
-                track.update(wrist[0], wrist[1], now_ms, thresh)
                 continue
             track.update(wrist[0], wrist[1], now_ms, thresh)
             if track.fast_motion_duration_ms(now_ms) >= min_dur:
