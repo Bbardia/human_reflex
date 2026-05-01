@@ -72,6 +72,19 @@ class PoseSimonConfig:
 
 
 @dataclass(frozen=True)
+class LaserLimboConfig:
+    match_duration_s: float = 30.0
+    starting_hp: int = 3
+    rate_hz_early: float = 3.0   # Poisson rate for the first ramp_at_s seconds
+    rate_hz_late: float = 5.0    # Poisson rate after ramp_at_s
+    ramp_at_s: float = 15.0      # when to switch to late rate + allow vertical lasers
+    laser_duration_ms: int = 800
+    laser_thickness: float = 0.05  # collision threshold in normalized coords
+    invuln_ms: int = 500
+    resolve_hold_ms: int = 1500    # how long to display final HP / hits before is_done
+
+
+@dataclass(frozen=True)
 class SessionConfig:
     intermission_ms: int = 4000  # auto-advance from intermission to next countdown
 
@@ -91,6 +104,7 @@ class Config:
     touch_circle: TouchCircleConfig = field(default_factory=TouchCircleConfig)
     goalie: GoalieConfig = field(default_factory=GoalieConfig)
     pose_simon: PoseSimonConfig = field(default_factory=PoseSimonConfig)
+    laser_limbo: LaserLimboConfig = field(default_factory=LaserLimboConfig)
     session: SessionConfig = field(default_factory=SessionConfig)
     server: ServerConfig = field(default_factory=ServerConfig)
 
@@ -103,6 +117,7 @@ def public_config_dict() -> dict:
     return {
         "gesture": asdict(CONFIG.gesture),
         "goalie": asdict(CONFIG.goalie),
+        "laser_limbo": asdict(CONFIG.laser_limbo),
         "pose_simon": asdict(CONFIG.pose_simon),
         "session": asdict(CONFIG.session),
         "touch_circle": asdict(CONFIG.touch_circle),
