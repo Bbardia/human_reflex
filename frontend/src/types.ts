@@ -122,6 +122,7 @@ export interface IntermissionData {
   current_index: number  // 1-based for display ("Game 2 of 4 starting…")
   total_games: number
   remaining_ms: number
+  is_sudden_death?: boolean
 }
 
 export interface LeaderboardData {

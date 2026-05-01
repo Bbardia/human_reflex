@@ -7,6 +7,7 @@ interface Props { snapshot: SessionSnapshot }
 export function IntermissionScreen({ snapshot }: Props) {
   const data = snapshot.intermission
   if (!data) return null
+  const isSuddenDeath = data.is_sudden_death === true
   const last = data.last_summary
   const winnerId = last?.winner ?? null
   const winnerLabel = winnerId == null ? 'DRAW' : `PLAYER ${winnerId}`
@@ -19,9 +20,11 @@ export function IntermissionScreen({ snapshot }: Props) {
       gap: 32,
     }}>
       <div style={{
-        fontFamily: THEME.fontMono, fontSize: 16, color: THEME.dim, letterSpacing: '0.2em',
+        fontFamily: THEME.fontMono, fontSize: 16,
+        color: isSuddenDeath ? '#ffff66' : THEME.dim,
+        letterSpacing: '0.2em',
       }}>
-        GAME {data.current_index - 1} / {data.total_games} · COMPLETE
+        {isSuddenDeath ? 'TIEBREAKER · SUDDEN DEATH' : `GAME ${data.current_index - 1} / ${data.total_games} · COMPLETE`}
       </div>
 
       {last && (
