@@ -129,3 +129,70 @@ def test_leaderboard_returns_to_title_after_hands_up():
     for t in range(1500, 4100, 50):
         s.tick(now_ms=t, p1=p1, p2=p2)
     assert s.to_dict(4100)["screen"] == SCREEN_TITLE
+
+
+from dataclasses import replace as _dataclass_replace
+from backend.config import CONFIG as _CONFIG
+
+
+def test_tied_leaderboard_triggers_sudden_death():
+    s = Session(now_ms=0)
+    # Pre-populate so tying the LAST game produces a leaderboard tie
+    s._completed_summaries = [  # type: ignore[attr-defined]
+        {"name": "G1", "winner": 2, "p1_metric": 0, "p2_metric": 1, "metric_unit": "x"},
+    ]
+    # Force into the last game and stub winner=1 → 1 win each → tied
+    s._game_index = len(GAME_REGISTRY) - 2  # type: ignore[attr-defined]
+    s._enter_game(0)  # type: ignore[attr-defined]
+    s._game._phase = "done"  # type: ignore[union-attr]
+    s._game.summary = lambda: {  # type: ignore[union-attr]
+        "name": "X", "winner": 1, "p1_metric": 1, "p2_metric": 0, "metric_unit": "x",
+    }
+    s.tick(now_ms=100, p1=None, p2=None)
+    snap = s.to_dict(100)
+    assert s._sudden_death_active is True  # type: ignore[attr-defined]
+    assert snap["screen"] == SCREEN_INTERMISSION
+    assert snap["intermission"]["is_sudden_death"] is True
+
+
+def test_non_tied_leaderboard_skips_sudden_death():
+    s = Session(now_ms=0)
+    # Pre-populate so the leaderboard does NOT tie after the last game
+    s._completed_summaries = [  # type: ignore[attr-defined]
+        {"name": "G1", "winner": 1, "p1_metric": 1, "p2_metric": 0, "metric_unit": "x"},
+    ]
+    s._game_index = len(GAME_REGISTRY) - 2  # type: ignore[attr-defined]
+    s._enter_game(0)  # type: ignore[attr-defined]
+    s._game._phase = "done"  # type: ignore[union-attr]
+    s._game.summary = lambda: {  # type: ignore[union-attr]
+        "name": "X", "winner": 1, "p1_metric": 1, "p2_metric": 0, "metric_unit": "x",
+    }
+    s.tick(now_ms=100, p1=None, p2=None)
+    snap = s.to_dict(100)
+    assert s._sudden_death_active is False  # type: ignore[attr-defined]
+    assert snap["screen"] == SCREEN_LEADERBOARD
+
+
+def test_sudden_death_game_winner_becomes_overall_winner():
+    s = Session(now_ms=0)
+    s._completed_summaries = [  # type: ignore[attr-defined]
+        {"name": "G1", "winner": 1, "p1_metric": 0, "p2_metric": 0, "metric_unit": "x"},
+        {"name": "G2", "winner": 2, "p1_metric": 0, "p2_metric": 0, "metric_unit": "x"},
+    ]
+    s._sudden_death_active = True  # type: ignore[attr-defined]
+    # Skip intermission; jump straight to a sudden-death game
+    s._enter_sudden_death_game(0)  # type: ignore[attr-defined]
+    s._game._phase = "done"  # type: ignore[union-attr]
+    s._game.summary = lambda: {  # type: ignore[union-attr]
+        "name": "Touch the Circle", "winner": 2,
+        "p1_metric": 400, "p2_metric": 250, "metric_unit": "ms",
+    }
+    s.tick(now_ms=100, p1=None, p2=None)
+    snap = s.to_dict(100)
+    assert snap["screen"] == SCREEN_LEADERBOARD
+    lb = snap["leaderboard"]
+    assert lb["winner"] == 2
+    # Regular wins remain 1-1; sudden-death entry is included in games list
+    assert lb["p1_wins"] == 1
+    assert lb["p2_wins"] == 1
+    assert any(g.get("name") == "Sudden Death" for g in lb["games"])

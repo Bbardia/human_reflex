@@ -6,6 +6,7 @@ to restart.
 
 P1 controls all menu transitions with the 2-second hands-up gesture.
 """
+from dataclasses import replace
 from typing import Optional, Callable
 from backend.config import CONFIG
 from backend.gestures import is_hands_up, GestureHold
@@ -65,6 +66,7 @@ class Session:
         self._completed_summaries: list[dict] = []
         self._countdown_started_ms: Optional[int] = None
         self._intermission_started_ms: Optional[int] = None
+        self._sudden_death_active: bool = False
 
     # ---- transitions ----
 
@@ -77,6 +79,7 @@ class Session:
         self._completed_summaries = []
         self._countdown_started_ms = None
         self._intermission_started_ms = None
+        self._sudden_death_active = False
 
     def _enter_countdown(self, now_ms: int) -> None:
         self._screen = SCREEN_COUNTDOWN
@@ -91,18 +94,31 @@ class Session:
         factory = GAME_REGISTRY[self._game_index]
         self._game = factory(now_ms)
 
-    def _enter_intermission(self, now_ms: int, last_summary: dict) -> None:
+    def _enter_sudden_death_game(self, now_ms: int) -> None:
+        """Start a single-round Touch-the-Circle as the tiebreaker."""
+        cfg_one_round = replace(CONFIG.touch_circle, rounds=1)
+        self._game = TouchCircleGame(now_ms=now_ms, config=cfg_one_round, seed=now_ms)
+        self._screen = SCREEN_GAME
+        self._screen_entered_ms = now_ms
+
+    def _enter_intermission_no_append(self, now_ms: int) -> None:
         self._screen = SCREEN_INTERMISSION
         self._screen_entered_ms = now_ms
         self._intermission_started_ms = now_ms
-        self._completed_summaries.append(last_summary)
         self._gesture_hold.reset()
 
-    def _enter_leaderboard(self, now_ms: int, last_summary: dict) -> None:
+    def _enter_leaderboard_no_append(self, now_ms: int) -> None:
         self._screen = SCREEN_LEADERBOARD
         self._screen_entered_ms = now_ms
-        self._completed_summaries.append(last_summary)
         self._gesture_hold.reset()
+
+    def _enter_intermission(self, now_ms: int, last_summary: dict) -> None:
+        self._completed_summaries.append(last_summary)
+        self._enter_intermission_no_append(now_ms)
+
+    def _enter_leaderboard(self, now_ms: int, last_summary: dict) -> None:
+        self._completed_summaries.append(last_summary)
+        self._enter_leaderboard_no_append(now_ms)
 
     # ---- tick ----
 
@@ -131,24 +147,49 @@ class Session:
     def _tick_game(self, now_ms: int, p1: Optional[Pose], p2: Optional[Pose]) -> None:
         assert self._game is not None
         self._game.tick(now_ms, p1, p2)
-        if self._game.is_done():
-            summary = self._game.summary()
-            is_last_game = self._game_index >= len(GAME_REGISTRY) - 1
-            if is_last_game:
-                self._enter_leaderboard(now_ms, summary)
-            else:
-                self._enter_intermission(now_ms, summary)
+        if not self._game.is_done():
+            return
+
+        summary = self._game.summary()
+        if self._sudden_death_active:
+            summary = {**summary, "name": "Sudden Death"}
+        self._completed_summaries.append(summary)
+
+        if self._sudden_death_active:
+            # Tiebreaker resolved → leaderboard
+            self._enter_leaderboard_no_append(now_ms)
+            return
+
+        is_last_regular = self._game_index >= len(GAME_REGISTRY) - 1
+        if is_last_regular:
+            p1_wins = sum(1 for s in self._completed_summaries if s.get("winner") == 1)
+            p2_wins = sum(1 for s in self._completed_summaries if s.get("winner") == 2)
+            if p1_wins == p2_wins:
+                # Tied → sudden-death intermission
+                self._sudden_death_active = True
+                self._enter_intermission_no_append(now_ms)
+                return
+            self._enter_leaderboard_no_append(now_ms)
+            return
+
+        self._enter_intermission_no_append(now_ms)
 
     def _tick_intermission(self, now_ms: int, p1: Optional[Pose]) -> None:
         # Auto-advance after intermission_ms; or P1 hands-up advances early
         started = self._intermission_started_ms if self._intermission_started_ms is not None else now_ms
         elapsed = now_ms - started
         if elapsed >= CONFIG.session.intermission_ms:
-            self._enter_countdown(now_ms)
+            if self._sudden_death_active:
+                self._enter_sudden_death_game(now_ms)
+            else:
+                self._enter_countdown(now_ms)
             return
         active = p1 is not None and is_hands_up(p1)
         if self._gesture_hold.update(active=active, now_ms=now_ms):
-            self._enter_countdown(now_ms)
+            if self._sudden_death_active:
+                self._enter_sudden_death_game(now_ms)
+            else:
+                self._enter_countdown(now_ms)
 
     def _tick_leaderboard(self, now_ms: int, p1: Optional[Pose]) -> None:
         if now_ms - self._screen_entered_ms < LEADERBOARD_MIN_HOLD_MS:
@@ -173,16 +214,27 @@ class Session:
             out["game"] = self._game.to_dict()
         if self._screen == SCREEN_INTERMISSION:
             last_summary = self._completed_summaries[-1] if self._completed_summaries else None
-            next_idx = self._game_index + 1
-            next_name = _factory_display_name(GAME_REGISTRY[next_idx]) if next_idx < len(GAME_REGISTRY) else None
             started = self._intermission_started_ms if self._intermission_started_ms is not None else now_ms
             elapsed = now_ms - started
+            if self._sudden_death_active:
+                next_name = "Sudden Death"
+                current_index = len(GAME_REGISTRY) + 1
+                total_games = len(GAME_REGISTRY) + 1
+            else:
+                next_idx = self._game_index + 1
+                next_name = (
+                    _factory_display_name(GAME_REGISTRY[next_idx])
+                    if next_idx < len(GAME_REGISTRY) else None
+                )
+                current_index = next_idx + 1
+                total_games = len(GAME_REGISTRY)
             out["intermission"] = {
                 "last_summary": last_summary,
                 "next_game_name": next_name,
-                "current_index": next_idx + 1,  # 1-based for display
-                "total_games": len(GAME_REGISTRY),
+                "current_index": current_index,
+                "total_games": total_games,
                 "remaining_ms": max(0, CONFIG.session.intermission_ms - elapsed),
+                "is_sudden_death": self._sudden_death_active,
             }
         if self._screen == SCREEN_LEADERBOARD:
             out["leaderboard"] = self._build_leaderboard()
@@ -197,9 +249,13 @@ class Session:
         return out
 
     def _build_leaderboard(self) -> dict:
-        p1_wins = sum(1 for s in self._completed_summaries if s.get("winner") == 1)
-        p2_wins = sum(1 for s in self._completed_summaries if s.get("winner") == 2)
-        if p1_wins > p2_wins:
+        regular = [s for s in self._completed_summaries if s.get("name") != "Sudden Death"]
+        sudden = [s for s in self._completed_summaries if s.get("name") == "Sudden Death"]
+        p1_wins = sum(1 for s in regular if s.get("winner") == 1)
+        p2_wins = sum(1 for s in regular if s.get("winner") == 2)
+        if sudden:
+            overall = sudden[0].get("winner")
+        elif p1_wins > p2_wins:
             overall = 1
         elif p2_wins > p1_wins:
             overall = 2
