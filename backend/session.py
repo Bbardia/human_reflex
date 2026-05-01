@@ -67,6 +67,7 @@ class Session:
         self._countdown_started_ms: Optional[int] = None
         self._intermission_started_ms: Optional[int] = None
         self._sudden_death_active: bool = False
+        self._last_seen_pose_ms: int = now_ms
 
     # ---- transitions ----
 
@@ -80,6 +81,7 @@ class Session:
         self._countdown_started_ms = None
         self._intermission_started_ms = None
         self._sudden_death_active = False
+        self._last_seen_pose_ms = now_ms
 
     def _enter_countdown(self, now_ms: int) -> None:
         self._screen = SCREEN_COUNTDOWN
@@ -123,6 +125,16 @@ class Session:
     # ---- tick ----
 
     def tick(self, now_ms: int, p1: Optional[Pose], p2: Optional[Pose]) -> None:
+        # Idle-timeout watchdog: if nobody is in the frame for idle_timeout_s
+        # while in a non-title screen, reset to title (per spec §8).
+        if p1 is not None or p2 is not None:
+            self._last_seen_pose_ms = now_ms
+        elif self._screen != SCREEN_TITLE:
+            idle_ms = int(CONFIG.gesture.idle_timeout_s * 1000)
+            if now_ms - self._last_seen_pose_ms >= idle_ms:
+                self._enter_title(now_ms)
+                return
+
         if self._screen == SCREEN_TITLE:
             self._tick_title(now_ms, p1)
         elif self._screen == SCREEN_COUNTDOWN:

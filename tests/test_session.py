@@ -196,3 +196,28 @@ def test_sudden_death_game_winner_becomes_overall_winner():
     assert lb["p1_wins"] == 1
     assert lb["p2_wins"] == 1
     assert any(g.get("name") == "Sudden Death" for g in lb["games"])
+
+
+def test_idle_timeout_returns_to_title_from_intermission():
+    s = Session(now_ms=0)
+    s._completed_summaries = [  # type: ignore[attr-defined]
+        {"name": "G1", "winner": 1, "p1_metric": 1, "p2_metric": 0, "metric_unit": "x"},
+    ]
+    s._enter_intermission(0, {"name": "G2", "winner": 2, "p1_metric": 0, "p2_metric": 1, "metric_unit": "x"})  # type: ignore[attr-defined]
+    idle_ms = int(CONFIG.gesture.idle_timeout_s * 1000)
+    s.tick(now_ms=100, p1=None, p2=None)
+    s.tick(now_ms=idle_ms + 200, p1=None, p2=None)
+    assert s.to_dict(idle_ms + 200)["screen"] == SCREEN_TITLE
+
+
+def test_idle_timeout_reset_when_pose_present():
+    s = Session(now_ms=0)
+    s._enter_intermission(0, {"name": "G", "winner": 1, "p1_metric": 1, "p2_metric": 0, "metric_unit": "x"})  # type: ignore[attr-defined]
+    idle_ms = int(CONFIG.gesture.idle_timeout_s * 1000)
+    # Show a pose halfway through the idle window — should reset the timer
+    s.tick(now_ms=int(idle_ms / 2), p1=neutral_pose(), p2=None)
+    # Tick again well past initial idle window but only idle_ms/2 since the pose;
+    # idle should NOT fire (so screen is anything except title — likely game,
+    # since intermission auto-advances and countdown completes within seconds).
+    s.tick(now_ms=idle_ms, p1=None, p2=None)
+    assert s.to_dict(idle_ms)["screen"] != SCREEN_TITLE
