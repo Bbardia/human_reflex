@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react'
 import type { TouchCircleState, RoundResult } from '../types'
 import { THEME } from '../theme'
+import { ParticleBurst } from '../components/ParticleBurst'
 
 interface Props {
   state: TouchCircleState
@@ -17,6 +19,15 @@ export function TouchCircleCanvas({ state, side, width: _width, height: _height 
   const playerKey = side === 'left' ? 'p1' : 'p2'
   const playerTime = lastResult?.[`${playerKey}_time_ms`] ?? null
   const falseStart = lastResult?.[`${playerKey}_false_start`] ?? false
+
+  const [lastBurstRound, setLastBurstRound] = useState<number | null>(null)
+  useEffect(() => {
+    if (playerTime !== null && !falseStart && state.round !== lastBurstRound) {
+      setLastBurstRound(state.round)
+    }
+  }, [playerTime, falseStart, state.round, lastBurstRound])
+
+  const burstColor = side === 'left' ? THEME.p1 : THEME.p2
 
   return (
     <div style={{ position: 'absolute', inset: 0 }}>
@@ -58,6 +69,14 @@ export function TouchCircleCanvas({ state, side, width: _width, height: _height 
           color: side === 'left' ? THEME.p1 : THEME.p2,
           textShadow: side === 'left' ? THEME.glowP1 : THEME.glowP2,
         }}>{playerTime}ms</div>
+      )}
+      {target && (
+        <ParticleBurst
+          xPct={target.x * 100}
+          yPct={target.y * 100}
+          color={burstColor}
+          trigger={lastBurstRound}
+        />
       )}
       <style>{`@keyframes pulse { from { transform: translate(-50%,-50%) scale(0.96); } to { transform: translate(-50%,-50%) scale(1.04); } }`}</style>
     </div>

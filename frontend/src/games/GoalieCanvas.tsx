@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react'
 import type { GoalieState } from '../types'
 import { THEME } from '../theme'
+import { ParticleBurst } from '../components/ParticleBurst'
 
 interface Props {
   state: GoalieState
@@ -21,6 +23,19 @@ export function GoalieCanvas({ state, side }: Props) {
 
   const ball = state.ball
   const targetZone = ball ? state.zones[ball.zone] : null
+
+  const [burstShot, setBurstShot] = useState<number | null>(null)
+  useEffect(() => {
+    if (saved && state.shot !== burstShot) {
+      setBurstShot(state.shot)
+    }
+  }, [saved, state.shot, burstShot])
+
+  const burstColor = side === 'left' ? THEME.p1 : THEME.p2
+  const burstZoneIdx = state.results[state.results.length - 1]?.zone
+  const burstZone = burstZoneIdx != null ? state.zones[burstZoneIdx] : null
+  const burstX = burstZone ? (burstZone[0] + burstZone[2]) * 50 : 50
+  const burstY = burstZone ? (burstZone[1] + burstZone[3]) * 50 : 50
 
   return (
     <div style={{ position: 'absolute', inset: 0 }}>
@@ -93,6 +108,7 @@ export function GoalieCanvas({ state, side }: Props) {
           }
         `}</style>
       )}
+      <ParticleBurst xPct={burstX} yPct={burstY} color={burstColor} trigger={burstShot} />
     </div>
   )
 }
