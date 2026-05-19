@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 .venv/
 *.egg-info/
+.claude
 
 # Models (downloaded at setup time)
 backend/pose/models/
