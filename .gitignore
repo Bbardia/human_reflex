@@ -18,5 +18,20 @@ frontend/dist/
 .vscode/
 .DS_Store
 
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Secrets / local env (never commit these)
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*credentials*
+*secret*
+secrets.*
+
 # Brainstorming session files
 .superpowers/
