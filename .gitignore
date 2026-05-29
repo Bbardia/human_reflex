@@ -35,3 +35,6 @@ secrets.*
 
 # Brainstorming session files
 .superpowers/
+
+# Internal design docs / plans — never publish
+docs/
